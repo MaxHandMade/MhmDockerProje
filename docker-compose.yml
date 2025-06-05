@@ -62,6 +62,8 @@ services:
       WORDPRESS_DB_PASSWORD: mysecureuserpassword456 # MariaDB kullanıcı şifresi
     volumes:
       - wordpress_data:/var/www/html # WordPress dosyalarını kalıcı hale getiriyoruz
+      - ./wp-config.php:/var/www/html/wp-config.php # Yerel wp-config.php dosyasını mount ediyoruz
+      - ./wp-content/mu-plugins/:/var/www/html/wp-content/mu-plugins/ # Must-Use plugin klasörünü bağlıyoruz
     ports:
       - "80:80"
     depends_on:
@@ -150,3 +152,17 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # Nginx Ters Proxy Servisi (WordPress için HTTPS ortamı sağlar)
+  nginx:
+    image: nginx:latest
+    container_name: nginx_container
+    networks:
+      - my-app-network
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "8081:80" # Host üzerindeki 8081 portunu Nginx container'ının 80 portuna yönlendir
+    depends_on:
+      - wordpress # WordPress servisinin çalışıyor olmasını bekliyor
+    restart: unless-stopped

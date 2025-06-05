@@ -102,3 +102,18 @@ Bu komut container'ları durdurur ve siler, ancak `volumes` belirtildiği için 
 - MariaDB ve PostgreSQL portları (`3306` ve `5432`) yerel makinenize dışarıdan erişim için açıktır ancak genellikle diğer container'lar tarafından kullanılır.
 - OpenWebUI, Ollama container'ına `OLLAMA_BASE_URL: http://ollama:11434` ortam değişkeni ile bağlanır.
 - Ollama'nın GPU kullanabilmesi için Docker Desktop veya Docker Engine ayarlarınızda GPU desteğinin etkinleştirildiğinden ve uygun sürücülerin yüklü olduğundan emin olun. 
+
+## 🐛 Bilinen Sorunlar ve Çözümleri
+
+### WordPress Uygulama Parolalarının Etkinleştirilmesi
+
+**Sorun:** WordPress, varsayılan olarak uygulama parolalarının kullanılabilmesi için HTTPS bağlantısı gerektirir. Bu proje ilk kurulduğunda ve WordPress doğrudan HTTP üzerinden (`http://localhost:80`) çalıştığında, uygulama parolaları arayüzde görünmez ve etkinleştirilemez.
+
+**Çözüm:** Bu sorunu aşmak ve uygulama parolalarını geliştirme ortamında etkinleştirmek için aşağıdaki adımlar izlenmiştir:
+
+1.  **Nginx Ters Proxy Kurulumu:** WordPress servisi önüne bir Nginx ters proxy konulmuştur. Nginx, gelen istekleri karşılar ve dahili ağ üzerinden WordPress servisine yönlendirir. Bu, WordPress'in bir ters proxy arkasında çalıştığını algılamasını sağlar.
+2.  **Port Değişikliği:** Nginx servisi, yerel makinede 80 portu yerine 8081 portuna (`http://localhost:8081`) bağlanacak şekilde yapılandırılmıştır. Bu, 80 portunu kullanabilecek diğer uygulamalarla çakışmayı önler.
+3.  **Must-Use Plugin:** WordPress'in HTTPS gereksinimini atlamak ve HTTP ortamında bile uygulama parolalarını zorla etkinleştirmek için bir Must-Use plugin (`wp-content/mu-plugins/enable-app-passwords.php`) eklenmiştir. Bu plugin, `wp_is_application_passwords_available` filtresini kullanarak uygulama parolaları özelliğini her zaman açık hale getirir.
+4.  **Volume Mount:** Yerel `wp-content/mu-plugins` klasörü, Docker volume yerine doğrudan WordPress container'ının `/var/www/html/wp-content/mu-plugins` yoluna bağlanmıştır. Bu, plugin dosyasının container içinde doğru şekilde bulunmasını sağlar.
+
+Bu adımlar sonucunda, WordPress sitesine `http://localhost:8081` adresinden erişildiğinde uygulama parolaları özelliği kullanılabilir hale gelmiştir. 
