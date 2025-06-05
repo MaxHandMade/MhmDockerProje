@@ -1,0 +1,152 @@
+# Docker ağımızı tanımlıyoruz
+networks:
+  my-app-network:
+    driver: bridge
+
+# Kalıcı depolama alanlarımızı (volumes) tanımlıyoruz
+# Bu alanlar, container'lar silinse bile verilerinizin kalıcı olmasını sağlar
+volumes:
+  mariadb_data: # MariaDB için volume (WordPress ve phpMyAdmin için korunuyor)
+  wordpress_data:
+  n8n_data: # N8N verileri için volume (şimdi PostgreSQL kullanacak)
+  ollama_models:
+  openwebui_data:
+  postgres_data:
+    # PostgreSQL için yeni volume
+
+    # Çalıştıracağımız servisleri (uygulamaları) tanımlıyoruz
+services:
+
+  # MariaDB Veritabanı Servisi (WordPress ve phpMyAdmin için)
+  mariadb:
+    image: mariadb:latest # Son sürüm
+    container_name: mariadb_container
+    networks:
+      - my-app-network
+    environment:
+      MYSQL_ROOT_PASSWORD: mysecretrootpassword123 # Güvenli root şifreniz
+      MYSQL_DATABASE: mydatabase # WordPress ve phpMyAdmin için veritabanı adı
+      MYSQL_USER: myuser # WordPress ve phpMyAdmin için kullanıcı adı
+      MYSQL_PASSWORD: mysecureuserpassword456 # Kullanıcı şifresi
+    volumes:
+      - mariadb_data:/var/lib/mysql # Docker Volume kullanılıyor
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+
+  # phpMyAdmin Veritabanı Yönetim Aracı Servisi
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest # Son sürüm
+    container_name: phpmyadmin_container
+    networks:
+      - my-app-network
+    environment:
+      PMA_HOST: mariadb # MariaDB'ye bağlanacak
+      MYSQL_ROOT_PASSWORD: mysecretrootpassword123 # MariaDB root şifresi
+    ports:
+      - "8080:80"
+    depends_on:
+      - mariadb # MariaDB'nin çalışıyor olmasını bekliyor
+    restart: unless-stopped
+
+  # WordPress Servisi
+  wordpress:
+    image: wordpress:latest # Son sürüm
+    container_name: wordpress_container
+    networks:
+      - my-app-network
+    environment:
+      WORDPRESS_DB_HOST: mariadb # MariaDB'ye bağlanacak
+      WORDPRESS_DB_NAME: mydatabase # MariaDB'deki veritabanı adı
+      WORDPRESS_DB_USER: myuser # MariaDB kullanıcı adı
+      WORDPRESS_DB_PASSWORD: mysecureuserpassword456 # MariaDB kullanıcı şifresi
+    volumes:
+      - wordpress_data:/var/www/html # WordPress dosyalarını kalıcı hale getiriyoruz
+    ports:
+      - "80:80"
+    depends_on:
+      - mariadb # MariaDB'nin çalışıyor olmasını bekliyor
+    restart: unless-stopped
+
+  # PostgreSQL Veritabanı Servisi (N8N için)
+  postgres:
+    image: postgres:latest # Son sürüm
+    container_name: postgres_container
+    networks:
+      - my-app-network
+    environment:
+      POSTGRES_DB: n8n_database # N8N için oluşturulacak veritabanı adı
+      POSTGRES_USER: n8n_user # N8N için oluşturulacak kullanıcı adı
+      POSTGRES_PASSWORD: mysecuren8npassword789 # N8N için kullanıcı şifresi (Güvenli şifreniz)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # PostgreSQL verilerini kalıcı hale getiriyoruz
+    ports:
+      - "5432:5432" # İsteğe bağlı: PostgreSQL'e dışarıdan erişim için
+    restart: unless-stopped
+
+  # N8N Otomasyon Aracı Servisi (Şimdi PostgreSQL kullanacak)
+  n8n:
+    image: n8nio/n8n:latest # Son sürüm
+    container_name: n8n_container
+    networks:
+      - my-app-network
+    environment:
+      DB_TYPE: postgres # Veritabanı tipini postgres olarak değiştiriyoruz
+      DB_POSTGRES_DATABASE: n8n_database # PostgreSQL'deki veritabanı adı
+      DB_POSTGRES_USER: n8n_user # PostgreSQL kullanıcı adı
+      DB_POSTGRES_PASSWORD: mysecuren8npassword789 # PostgreSQL kullanıcı şifresi
+      DB_POSTGRES_HOST: postgres # PostgreSQL servis adı
+      N8N_LOG_LEVEL: debug
+      GENERIC_TIMEZONE: Europe/Istanbul
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true # İzin uyarısını gidermek için
+    volumes:
+      - n8n_data:/home/node/.n8n # N8N verilerini kalıcı hale getiriyoruz
+    ports:
+      - "5678:5678"
+    depends_on:
+      - postgres # MariaDB yerine PostgreSQL'in çalışıyor olmasını bekliyor
+    restart: unless-stopped
+
+  # Ollama Servisi (Yerel LLM çalıştırmak için)
+  ollama:
+    image: ollama/ollama:latest # Son sürüm
+    container_name: ollama_container
+    networks:
+      - my-app-network
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama # Modelleri kalıcı hale getiriyoruz
+    deploy:
+      resources:
+        reservations:
+          devices:
+            # Nvidia GPU kullanmak için bu kısmı aktif edin
+            # Docker Desktop ayarlarınızda GPU desteğinin açık olduğundan emin olun
+            - driver: nvidia
+              count: all # Kullanılabilir tüm Nvidia GPU'ları kullan
+              capabilities: [ gpu ]
+    restart: unless-stopped
+
+  # Open WebUI Servisi (Ollama için kullanıcı arayüzü)
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:latest
+    container_name: openwebui_container
+    networks:
+      - my-app-network
+    ports:
+      - "3000:8080"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - openwebui_data:/app/backend/data # Docker Volume kullanılıyor
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    # Sağlık kontrolü (openwebui sağlıklı görünüyorsa kalsın)
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

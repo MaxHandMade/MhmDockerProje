@@ -1,0 +1,104 @@
+# Docker Compose Çoklu Uygulama Ortamı
+
+Bu proje, Docker Compose kullanarak çeşitli web uygulamalarını ve servislerini tek bir ortamda çalıştırmanızı sağlar. İçerik yönetimi, veritabanı yönetimi, otomasyon ve yerel yapay zeka (LLM) yeteneklerini bir araya getirir.
+
+## 🚀 İçerdiği Servisler
+
+- **WordPress:** Blog ve içerik yönetimi platformu.
+- **phpMyAdmin:** MariaDB veritabanı için web tabanlı yönetim arayüzü.
+- **MariaDB:** WordPress ve phpMyAdmin için ilişkisel veritabanı sistemi.
+- **n8n:** Güçlü bir açık kaynaklı otomasyon ve entegrasyon aracı.
+- **PostgreSQL:** n8n için kullanılan ilişkisel veritabanı sistemi.
+- **Ollama:** Yerel olarak dil modellerini (LLM) çalıştırmak için bir platform.
+- **OpenWebUI:** Ollama için kullanıcı dostu bir web arayüzü.
+
+## ✨ Özellikler
+
+- Tüm servisler `my-app-network` isimli özel bir Docker ağı üzerinden iletişim kurar.
+- Verilerinizin kalıcı olması için her servis için ayrı Docker volumes tanımlanmıştır.
+- Servis bağımlılıkları (`depends_on`) doğru başlatma sırasını garanti eder.
+- Ollama servisi isteğe bağlı olarak GPU desteği için yapılandırılabilir.
+- n8n, otomasyon iş akışlarında Ollama'yı kullanacak şekilde ayarlanabilir.
+
+##  prerequisites
+
+- Docker yüklü ve çalışıyor olmalı.
+- Docker Compose (veya Docker Desktop ile gelen compose) yüklü olmalı.
+
+## 🔧 Kurulum ve Başlatma
+
+1.  Projeyi indirin veya dosyaları (özellikle `docker-compose.yml` ve eğer kullanacaksanız `.env` ve `nginx` klasörlerini) çalışma dizininize yerleştirin.
+
+2.  **.env Dosyası Oluşturma (İsteğe bağlı ama önerilir):**
+
+    Güvenlik için veritabanı şifrelerinizi ve diğer hassas bilgileri yönetmek amacıyla `.env` dosyası oluşturabilirsiniz. `docker-compose.yml` dosyasındaki `environment` bölümlerinde tanımlı şifreleri kendi seçeceğiniz güvenli şifrelerle değiştirmeniz **önemle tavsiye edilir**. Şu anki yapılandırma şifreleri doğrudan `docker-compose.yml` içinde barındırmaktadır.
+
+    Örnek `.env` içeriği (Eğer `.env` kullanacaksanız `docker-compose.yml` içindeki `environment` değerlerini `$VARIABLE_NAME` şeklinde güncelleyin):
+
+    ```env
+    MYSQL_ROOT_PASSWORD=guvenli_mariadb_root_sifresi
+    MYSQL_DATABASE=mydatabase
+    MYSQL_USER=myuser
+    MYSQL_PASSWORD=guvenli_mariadb_kullanici_sifresi
+
+    POSTGRES_DB=n8n_database
+    POSTGRES_USER=n8n_user
+    POSTGRES_PASSWORD=guvenli_postgres_sifresi
+    # n8n için ek ayarlar (isteğe bağlı)
+    # GENERIC_TIMEZONE=Europe/Istanbul
+    ```
+
+3.  **Docker Servislerini Başlatma:**
+
+    Proje dizininde ( `docker-compose.yml` dosyasının bulunduğu yerde) terminali açın ve aşağıdaki komutu çalıştırın:
+
+    ```bash
+    docker compose up -d
+    ```
+
+    Bu komut, tüm servisleri arka planda başlatacaktır. Servislerin ilk defa kurulması biraz zaman alabilir.
+
+4.  **LLM Modelini Yükleme (Ollama için):**
+
+    Ollama servisi çalıştıktan sonra, kullanmak istediğiniz dil modellerini indirebilirsiniz. Örneğin, `mistral:7b` modelini yüklemek için:
+
+    ```bash
+    docker exec ollama_container ollama pull mistral:7b
+    ```
+
+## 🖥️ Servislere Erişim
+
+Servisler başladıktan sonra aşağıdaki adreslerden erişebilirsiniz:
+
+- **WordPress:** `http://localhost:80`
+- **phpMyAdmin:** `http://localhost:8080`
+- **n8n:** `http://localhost:5678`
+- **OpenWebUI (Ollama Arayüzü):** `http://localhost:3000`
+- **MariaDB:** `localhost:3306` (Genellikle sadece diğer container'lar tarafından kullanılır)
+- **PostgreSQL:** `localhost:5432` (Genellikle sadece n8n container'ı tarafından kullanılır)
+
+## 📁 Klasör Yapısı
+
+```
+.
+├── docker-compose.yml
+├── README.md
+```
+
+**Not:** `.env` dosyası isteğe bağlıdır ve volume klasörleri (örneğin `mariadb_data`, `wordpress_data`, vb.) Docker tarafından yönetilir ve genellikle proje dizininin dışında veya Docker'ın kendi depolama alanında bulunur.
+
+## 🛑 Uygulamaları Durdurma
+
+Tüm çalışan servisleri durdurmak ve silmek için proje dizininde aşağıdaki komutu kullanın:
+
+```bash
+docker compose down
+```
+
+Bu komut container'ları durdurur ve siler, ancak `volumes` belirtildiği için verileriniz kalıcı olur.
+
+## 📝 Notlar
+
+- MariaDB ve PostgreSQL portları (`3306` ve `5432`) yerel makinenize dışarıdan erişim için açıktır ancak genellikle diğer container'lar tarafından kullanılır.
+- OpenWebUI, Ollama container'ına `OLLAMA_BASE_URL: http://ollama:11434` ortam değişkeni ile bağlanır.
+- Ollama'nın GPU kullanabilmesi için Docker Desktop veya Docker Engine ayarlarınızda GPU desteğinin etkinleştirildiğinden ve uygun sürücülerin yüklü olduğundan emin olun. 
