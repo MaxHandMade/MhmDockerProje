@@ -83,6 +83,12 @@ Servisler başladıktan sonra aşağıdaki adreslerden erişebilirsiniz:
 .
 ├── docker-compose.yml
 ├── README.md
+├── wp-config.php
+├── nginx/
+│   └── nginx.conf
+└── wp-content/
+    └── mu-plugins/
+        └── enable-app-passwords.php
 ```
 
 **Not:** `.env` dosyası isteğe bağlıdır ve volume klasörleri (örneğin `mariadb_data`, `wordpress_data`, vb.) Docker tarafından yönetilir ve genellikle proje dizininin dışında veya Docker'ın kendi depolama alanında bulunur.
