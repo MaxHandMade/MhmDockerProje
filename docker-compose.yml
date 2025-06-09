@@ -11,8 +11,9 @@ volumes:
   n8n_data: # N8N verileri için volume (şimdi PostgreSQL kullanacak)
   ollama_models:
   openwebui_data:
-  postgres_data:
-    # PostgreSQL için yeni volume
+  postgres_data: # PostgreSQL için yeni volume
+  comfyui_data:
+    # ComfyUI verileri ve modelleri için yeni volume
 
     # Çalıştıracağımız servisleri (uygulamaları) tanımlıyoruz
 services:
@@ -60,6 +61,15 @@ services:
       WORDPRESS_DB_NAME: mydatabase # MariaDB'deki veritabanı adı
       WORDPRESS_DB_USER: myuser # MariaDB kullanıcı adı
       WORDPRESS_DB_PASSWORD: mysecureuserpassword456 # MariaDB kullanıcı şifresi
+      WORDPRESS_CONFIG_EXTRA: |
+        /* Multisite */
+        define('WP_ALLOW_MULTISITE', true);
+        define('MULTISITE', true);
+        define('SUBDOMAIN_INSTALL', false);
+        define('DOMAIN_CURRENT_SITE', 'localhost');
+        define('PATH_CURRENT_SITE', '/');
+        define('SITE_ID_CURRENT_SITE', 1);
+        define('BLOG_ID_CURRENT_SITE', 1);
     volumes:
       - wordpress_data:/var/www/html # WordPress dosyalarını kalıcı hale getiriyoruz
       - ./wp-config.php:/var/www/html/wp-config.php # Yerel wp-config.php dosyasını mount ediyoruz
@@ -165,4 +175,25 @@ services:
       - "8081:80" # Host üzerindeki 8081 portunu Nginx container'ının 80 portuna yönlendir
     depends_on:
       - wordpress # WordPress servisinin çalışıyor olmasını bekliyor
+    restart: unless-stopped
+
+  # ComfyUI Servisi (Görüntü ve video oluşturma için)
+  comfyui:
+    image: yanwk/comfyui-boot:cu124-slim # NVIDIA GPU desteği olan yeni imaj
+    container_name: comfyui_container
+    networks:
+      - my-app-network
+    ports:
+      - "8188:8188" # ComfyUI web arayüzü
+    volumes:
+      - comfyui_data:/app/comfyui/data # ComfyUI verilerini ve modellerini kalıcı hale getiriyoruz
+      # Modelleri ve diğer kaynakları burada bağlayabilirsiniz, örnek:
+      # - ./comfyui_models:/app/comfyui/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # Kullanılabilir tüm Nvidia GPU'ları kullan
+              capabilities: [ gpu ]
     restart: unless-stopped
