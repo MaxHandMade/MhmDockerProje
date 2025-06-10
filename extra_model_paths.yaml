@@ -1,0 +1,19 @@
+comfyui:
+    base_path: /data/comfyui
+    checkpoints: models/checkpoints
+    loras: models/loras
+    vae: models/vae
+    text_encoders: models/text_encoders
+    diffusion_models: models/diffusion_models
+    clip_vision: models/clip_vision
+    style_models: models/style_models
+    embeddings: models/embeddings
+    diffusers: models/diffusers
+    controlnet: models/controlnet
+    gligen: models/gligen
+    upscale_models: models/upscale_models
+    hypernetworks: models/hypernetworks
+    photomaker: models/photomaker
+    classifiers: models/classifiers
+    download_model_base: models/download_model_base
+    vae_approx: models/vae_approx 
